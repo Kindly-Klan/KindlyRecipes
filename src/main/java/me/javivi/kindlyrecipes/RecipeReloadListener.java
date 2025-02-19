@@ -5,12 +5,15 @@ import net.minecraft.server.packs.resources.SimplePreparableReloadListener;
 import net.minecraft.util.profiling.ProfilerFiller;
 import net.minecraft.world.item.crafting.Recipe;
 import net.minecraft.world.item.crafting.RecipeManager;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.Collection;
 import java.util.List;
 import java.util.stream.Collectors;
 
 public class RecipeReloadListener extends SimplePreparableReloadListener<List<Recipe<?>>> {
+    private static final Logger LOGGER = LoggerFactory.getLogger("KindlyRecipes");
     private final RecipeManager recipeManager;
 
     public RecipeReloadListener(RecipeManager recipeManager) {
@@ -20,28 +23,22 @@ public class RecipeReloadListener extends SimplePreparableReloadListener<List<Re
     @Override
     protected List<Recipe<?>> prepare(ResourceManager resourceManager, ProfilerFiller profiler) {
         Collection<Recipe<?>> allRecipes = recipeManager.getRecipes();
-        System.out.println("Total recetas cargadas del RecipeManager: " + allRecipes.size());
-
-        allRecipes.forEach(recipe -> {
-            boolean isBlocked = RecipeBlocker.isRecipeBlocked(recipe.getId());
-            System.out.println("Receta: " + recipe.getId() + " bloqueada: " + isBlocked);
-        });
+        LOGGER.debug("Processing {} recipes from RecipeManager", allRecipes.size());
 
         List<Recipe<?>> filteredRecipes = allRecipes.stream()
                 .filter(recipe -> !RecipeBlocker.isRecipeBlocked(recipe.getId()))
                 .collect(Collectors.toList());
 
-        System.out.println("Total recetas después del filtro de bloqueo: " + filteredRecipes.size());
+        LOGGER.debug("Filtered to {} available recipes", filteredRecipes.size());
         return filteredRecipes;
     }
 
     @Override
     protected void apply(List<Recipe<?>> prepared, ResourceManager resourceManager, ProfilerFiller profiler) {
-        System.out.println("Recetas preparadas: " + prepared.size());
-        prepared.forEach(recipe -> System.out.println("Receta cargada: " + recipe.getId()));
         if (prepared.isEmpty()) {
-            System.out.println("Todas las recetas han sido bloqueadas o no se han cargado correctamente.");
+            LOGGER.warn("All recipes have been blocked - this may not be intentional!");
         } else {
+            LOGGER.info("Applying {} recipes to RecipeManager", prepared.size());
             recipeManager.replaceRecipes(prepared);
         }
     }

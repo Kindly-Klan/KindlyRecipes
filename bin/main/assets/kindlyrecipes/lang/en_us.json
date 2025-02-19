@@ -1,0 +1,11 @@
+{
+  "key.kindlyrecipes.open_manager": "Open Recipe Manager",
+  "key.categories.kindlyrecipes": "KindlyRecipes",
+  "screen.kindlyrecipes.recipe_manager": "Recipe Manager",
+  "gui.kindlyrecipes.search": "Search recipes...",
+  "gui.kindlyrecipes.show_available": "Show Available Recipes",
+  "gui.kindlyrecipes.show_blocked": "Show Blocked Recipes",
+  "gui.kindlyrecipes.block": "Block",
+  "gui.kindlyrecipes.unblock": "Unblock",
+  "message.kindlyrecipes.no_permission": "§cYou don't have permission to open the Recipe Manager"
+}

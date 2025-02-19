@@ -1,35 +1,42 @@
 package me.javivi.kindlyrecipes;
 
-import net.minecraftforge.client.event.RecipesUpdatedEvent;
+import net.minecraft.server.MinecraftServer;
 import net.minecraftforge.event.AddReloadListenerEvent;
 import net.minecraftforge.event.server.ServerAboutToStartEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 @Mod.EventBusSubscriber(modid = Kindlyrecipes.MOD_ID)
 public class RecipeManagerHandler {
+    private static final Logger LOGGER = LoggerFactory.getLogger("KindlyRecipes");
+    private static boolean hasLoadedRecipes = false;
 
     @SubscribeEvent
     public static void onServerAboutToStart(ServerAboutToStartEvent event) {
-        RecipeBlocker.loadBlockedRecipes(); // FN, carga recetas bloqueadas
+        loadRecipesIfNeeded();
     }
 
     @SubscribeEvent
     public static void onAddReloadListener(AddReloadListenerEvent event) {
-        RecipeBlocker.loadBlockedRecipes();
+        loadRecipesIfNeeded();
         event.addListener(new RecipeReloadListener(event.getServerResources().getRecipeManager()));
     }
 
-    @SubscribeEvent
-    public static void onRecipesUpdated(RecipesUpdatedEvent event) {
-        RecipeBlocker.loadBlockedRecipes();
+    private static synchronized void loadRecipesIfNeeded() {
+        if (!hasLoadedRecipes) {
+            LOGGER.debug("Loading blocked recipes configuration");
+            RecipeBlocker.loadBlockedRecipes();
+            hasLoadedRecipes = true;
+        }
+    }
+
+    public static void forceReload(MinecraftServer server) {
+        hasLoadedRecipes = false;
+        loadRecipesIfNeeded();
+        if (server != null) {
+            RecipeReloadListener.reloadRecipes(server.getRecipeManager());
+        }
     }
 }
-/*
-
-Vale, KindlyRecipes es muy delicado, es por eso
-que en varias partes del código llamo a RecipeBlocker.loadBlockedRecipes(),
-ya que Minecraft carga en muchas partes de su "ciclo de vida" las recetas.
-Se puede mejorar? Sí. Funciona? También. Así que es lo que hay, por lo menos hasta migrar a Fabric.
-
- */
