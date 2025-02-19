@@ -12,6 +12,7 @@ import net.minecraftforge.fml.event.lifecycle.FMLCommonSetupEvent;
 import net.minecraftforge.fml.javafmlmod.FMLJavaModLoadingContext;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import me.javivi.kindlyrecipes.networking.ModMessages;
 
 @Mod(Kindlyrecipes.MOD_ID)
 public class Kindlyrecipes {
@@ -27,14 +28,14 @@ public class Kindlyrecipes {
 
     private void setup(final FMLCommonSetupEvent event) {
         LOGGER.info("Loading recipe configurations...");
-        RecipeBlocker.loadBlockedRecipes();
+        event.enqueueWork(() -> {
+            ModMessages.register();
+            RecipeBlocker.loadBlockedRecipes();
+        });
     }
 
     private void clientSetup(final FMLClientSetupEvent event) {
-        event.enqueueWork(() -> {
-            LOGGER.info("Generating GUI textures...");
-            TextureGenerator.generateBackgroundTexture();
-        });
+        
     }
 
     @SubscribeEvent

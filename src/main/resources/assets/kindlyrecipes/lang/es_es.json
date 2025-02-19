@@ -7,5 +7,6 @@
   "gui.kindlyrecipes.show_blocked": "Mostrar Recetas Bloqueadas",
   "gui.kindlyrecipes.block": "Bloquear",
   "gui.kindlyrecipes.unblock": "Desbloquear",
-  "message.kindlyrecipes.no_permission": "§cNo tienes permisos para abrir el Gestor de Recetas"
+  "message.kindlyrecipes.no_permission": "§cNo tienes permisos para abrir el Gestor de Recetas de Kindly Klan.",
+  "gui.narration.recipe": "Receta: %s"
 }

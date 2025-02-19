@@ -1,7 +1,8 @@
 package me.javivi.kindlyrecipes.client.gui;
 
 import com.mojang.blaze3d.systems.RenderSystem;
-import com.mojang.blaze3d.vertex.*;
+
+import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.*;
 import net.minecraft.client.gui.screens.Screen;
@@ -13,9 +14,11 @@ import me.javivi.kindlyrecipes.RecipeBlocker;
 import me.javivi.kindlyrecipes.Kindlyrecipes;
 import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.api.distmarker.OnlyIn;
-import net.minecraftforge.network.PacketDistributor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import me.javivi.kindlyrecipes.networking.ModMessages;
+import me.javivi.kindlyrecipes.networking.BlockRecipeC2SPacket;
+import me.javivi.kindlyrecipes.networking.UnblockRecipeC2SPacket;
 
 import java.util.*;
 import java.util.stream.Collectors;
@@ -43,9 +46,30 @@ public class RecipeManagerScreen extends Screen {
         int centerX = width / 2;
         int centerY = height / 2;
 
-        // Caja de búsqueda
+        // Caja de búsqueda con mejor estilo
         this.searchBox = new EditBox(this.font, centerX - 100, centerY - 100, 200, 20, 
-            Component.translatable("gui.kindlyrecipes.search"));
+            Component.translatable("gui.kindlyrecipes.search")) {
+            @Override
+            public void renderWidget(GuiGraphics graphics, int mouseX, int mouseY, float partialTick) {
+                int borderColor = this.isFocused() ? 0xFFFFFFFF : 0xFF555555;
+                graphics.fill(this.getX() - 1, this.getY() - 1, 
+                            this.getX() + this.width + 1, this.getY() + this.height + 1, 
+                            borderColor);
+                graphics.fill(this.getX(), this.getY(), 
+                            this.getX() + this.width, this.getY() + this.height, 
+                            0xFF000000);
+                super.renderWidget(graphics, mouseX, mouseY, partialTick);
+                
+                // Mostrar placeholder si está vacío y no tiene foco
+                if (this.getValue().isEmpty() && !this.isFocused()) {
+                    graphics.drawString(font, 
+                        Component.translatable("gui.kindlyrecipes.search").getString(), 
+                        this.getX() + 4, 
+                        this.getY() + (this.height - 8) / 2, 
+                        0xFF666666);
+                }
+            }
+        };
         this.searchBox.setMaxLength(50);
         this.searchBox.setResponder(this::updateSearch);
         addRenderableWidget(this.searchBox);
@@ -87,6 +111,31 @@ public class RecipeManagerScreen extends Screen {
         updateRecipeList();
     }
 
+    private boolean recipeMatchesSearch(Recipe<?> recipe) {
+        if (searchText.isEmpty()) {
+            return true;
+        }
+        
+        String search = searchText.toLowerCase();
+        
+        // Buscar en el ID de la receta
+        if (recipe.getId().toString().toLowerCase().contains(search)) {
+            return true;
+        }
+        
+        // Buscar en el nombre traducido del resultado
+        if (recipe.getResultItem(minecraft.level.registryAccess())
+                .getDisplayName().getString().toLowerCase().contains(search)) {
+            return true;
+        }
+        
+        // Buscar en los ingredientes
+        return recipe.getIngredients().stream()
+            .flatMap(ingredient -> Arrays.stream(ingredient.getItems()))
+            .map(itemStack -> itemStack.getDisplayName().getString().toLowerCase())
+            .anyMatch(name -> name.contains(search));
+    }
+
     public void updateRecipeList() {
         if (minecraft == null || minecraft.level == null) {
             LOGGER.warn("No se puede actualizar la lista de recetas: minecraft o level es null");
@@ -101,8 +150,7 @@ public class RecipeManagerScreen extends Screen {
                 boolean isBlocked = blockedRecipes.contains(recipe.getId());
                 return showingBlocked ? isBlocked : !isBlocked;
             })
-            .filter(recipe -> searchText.isEmpty() || 
-                recipe.getId().toString().toLowerCase().contains(searchText))
+            .filter(this::recipeMatchesSearch)
             .collect(Collectors.toList());
 
         LOGGER.debug("Mostrando {} recetas ({} bloqueadas)", 
@@ -110,6 +158,20 @@ public class RecipeManagerScreen extends Screen {
             showingBlocked ? "mostrando" : "ocultando");
 
         this.recipeList.updateRecipes(availableRecipes);
+        
+        // También actualizar el botón de alternar vista
+        if (this.toggleButton != null) {
+            this.toggleButton.setMessage(
+                Component.translatable("gui.kindlyrecipes.show_" + (showingBlocked ? "available" : "blocked"))
+            );
+        }
+    }
+
+    // Método estático para actualizar todas las instancias abiertas
+    public static void onRecipesSynced() {
+        if (Minecraft.getInstance().screen instanceof RecipeManagerScreen screen) {
+            screen.updateRecipeList();
+        }
     }
 
     @Override
@@ -123,7 +185,6 @@ public class RecipeManagerScreen extends Screen {
             RenderSystem.setShaderTexture(0, TEXTURE);
             graphics.blit(TEXTURE, width / 2 - 120, height / 2 - 120, 0, 0, 240, 240);
         } catch (Exception e) {
-            // Si falla la textura, usar un fondo oscuro
             graphics.fill(width / 2 - 120, height / 2 - 120, width / 2 + 120, height / 2 + 120, 0xAA000000);
         }
 
@@ -132,8 +193,10 @@ public class RecipeManagerScreen extends Screen {
         // Render title
         graphics.drawCenteredString(font, title, width / 2, height / 2 - 110, 0xFFFFFF);
         
-        // Mostrar cantidad de recetas
-        String countText = availableRecipes.size() + " recetas " + (showingBlocked ? "bloqueadas" : "disponibles");
+        // Mostrar cantidad de recetas y resultados de búsqueda
+        String countText = availableRecipes.size() + " recetas " + 
+            (showingBlocked ? "bloqueadas" : "disponibles") +
+            (!searchText.isEmpty() ? " (buscando: " + searchText + ")" : "");
         graphics.drawCenteredString(font, countText, width / 2, height / 2 + 95, 0xAAAAAA);
     }
 
@@ -170,5 +233,37 @@ public class RecipeManagerScreen extends Screen {
             setFocused(this.recipeList);
         }
         return super.mouseClicked(mouseX, mouseY, button);
+    }
+
+    public class RecipeEntry extends ObjectSelectionList.Entry<RecipeEntry> {
+        private final Recipe<?> recipe;
+
+        public RecipeEntry(Recipe<?> recipe) {
+            this.recipe = recipe;
+        }
+
+        @Override
+        public void render(GuiGraphics graphics, int index, int y, int x, int listWidth, int slotHeight, int mouseX, int mouseY, boolean isSelected, float partialTicks) {
+            // Render recipe entry
+        }
+
+        @SuppressWarnings("unused")
+        private void toggleRecipe(Button button) {
+            ResourceLocation recipeId = recipe.getId();
+            if (RecipeBlocker.isRecipeBlocked(recipeId)) {
+                // Enviar paquete al servidor para desbloquear
+                ModMessages.INSTANCE.sendToServer(new UnblockRecipeC2SPacket(recipeId));
+            } else {
+                // Enviar paquete al servidor para bloquear
+                ModMessages.INSTANCE.sendToServer(new BlockRecipeC2SPacket(recipeId));
+            }
+            
+            // El botón se actualizará cuando recibamos la respuesta del servidor
+        }
+
+        @Override
+        public Component getNarration() {
+            return Component.translatable("gui.narration.recipe", recipe.getId().toString());
+        }
     }
 }

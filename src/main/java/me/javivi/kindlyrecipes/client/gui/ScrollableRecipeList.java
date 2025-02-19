@@ -9,6 +9,9 @@ import net.minecraft.world.item.crafting.Recipe;
 import net.minecraft.resources.ResourceLocation;
 import me.javivi.kindlyrecipes.RecipeBlocker;
 import net.minecraft.util.FormattedCharSequence;
+import me.javivi.kindlyrecipes.networking.ModMessages;
+import me.javivi.kindlyrecipes.networking.BlockRecipeC2SPacket;
+import me.javivi.kindlyrecipes.networking.UnblockRecipeC2SPacket;
 
 import java.util.List;
 
@@ -76,16 +79,14 @@ public class ScrollableRecipeList extends ObjectSelectionList<ScrollableRecipeLi
         private void toggleRecipe(Button button) {
             ResourceLocation recipeId = recipe.getId();
             if (RecipeBlocker.isRecipeBlocked(recipeId)) {
-                RecipeBlocker.unblockRecipe(recipeId);
+                // Enviar paquete al servidor para desbloquear
+                ModMessages.INSTANCE.sendToServer(new UnblockRecipeC2SPacket(recipeId));
             } else {
-                RecipeBlocker.blockRecipe(recipeId);
+                // Enviar paquete al servidor para bloquear
+                ModMessages.INSTANCE.sendToServer(new BlockRecipeC2SPacket(recipeId));
             }
-            
-            button.setMessage(Component.translatable(RecipeBlocker.isRecipeBlocked(recipeId) ? 
-                "gui.kindlyrecipes.unblock" : "gui.kindlyrecipes.block"));
-                
-            // Actualizar la lista después de cambiar el estado
-            parent.updateRecipeList();
+
+            // No actualizar el botón aquí, se actualizará cuando llegue la respuesta del servidor
         }
 
         @Override

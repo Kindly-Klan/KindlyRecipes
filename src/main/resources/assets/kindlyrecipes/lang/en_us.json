@@ -7,5 +7,6 @@
   "gui.kindlyrecipes.show_blocked": "Show Blocked Recipes",
   "gui.kindlyrecipes.block": "Block",
   "gui.kindlyrecipes.unblock": "Unblock",
-  "message.kindlyrecipes.no_permission": "§cYou don't have permission to open the Recipe Manager"
+  "message.kindlyrecipes.no_permission": "§cYou don't have permission to open the Recipe Manager of Kindly Klan",
+  "gui.narration.recipe": "Recipe: %s"
 }

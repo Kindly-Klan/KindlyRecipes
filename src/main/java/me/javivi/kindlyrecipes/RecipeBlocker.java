@@ -4,6 +4,7 @@ import com.google.gson.*;
 import net.minecraft.resources.ResourceLocation;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import me.javivi.kindlyrecipes.networking.ModMessages;
 
 import java.io.*;
 import java.nio.file.Files;
@@ -102,6 +103,7 @@ public class RecipeBlocker {
         if (blockedRecipes.remove(recipe)) {
             LOGGER.info("Receta desbloqueada: {}", recipe);
             saveBlockedRecipes();
+            // No enviar paquetes desde aquí - el manejo de paquetes se hace en UnblockRecipeC2SPacket
         }
     }
 
@@ -112,5 +114,12 @@ public class RecipeBlocker {
     public static void reloadBlockedRecipes() {
         LOGGER.info("Recargando recetas bloqueadas...");
         loadBlockedRecipes();
+    }
+
+    public static void syncBlockedRecipes(Set<ResourceLocation> recipes) {
+        blockedRecipes.clear();
+        blockedRecipes.addAll(recipes);
+        saveBlockedRecipes();
+        LOGGER.info("Sincronizadas {} recetas bloqueadas desde el servidor", recipes.size());
     }
 }
